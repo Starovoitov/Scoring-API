@@ -57,7 +57,7 @@ class ValidationError(Exception):
 
 class CharField(Parameter):
     def validate(self, value):
-        if not isinstance(value, unicode):
+        if not isinstance(value, basestring):
             raise ValidationError("The value should be a string")
 
 
@@ -76,10 +76,10 @@ class EmailField(CharField):
 
 class PhoneField(Parameter):
     def validate(self, value):
-        if not isinstance(value, str) and not isinstance(value, int):
-            return False
+        if not isinstance(value, basestring) and not isinstance(value, int):
+            raise ValidationError("Entered value is not a valid phone number in Russia")
         elif not str(value).startswith("7"):
-            return False
+            raise ValidationError("Entered value should start from 7")
         elif len(str(value).replace('(', '').replace(')', '').replace('-', '').replace(' ', '')) != 11:
             raise ValidationError("Entered value is not a valid phone number in Russia")
 
@@ -92,7 +92,7 @@ class DateField(Parameter):
             raise ValidationError("Incorrect data format, should be DD.MM.YYYY")
 
 
-class BirthDayField(Parameter):
+class BirthDayField(DateField):
     def validate(self, value):
         super(BirthDayField, self).validate(value)
         birth_date = datetime.datetime.strptime(value, '%d.%m.%Y')
