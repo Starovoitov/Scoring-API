@@ -8,6 +8,7 @@ import logging
 import hashlib
 import uuid
 import scoring
+import RedisStore
 from optparse import OptionParser
 from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler
 
@@ -263,14 +264,16 @@ def method_handler(request, context, ctx):
     if not check_auth(current_request):
         return "Forbidden", FORBIDDEN
 
-    return current_request.handle(context)
+    response, code = current_request.handle(context)
+    ctx.update_cache(current_request.account, response)
+    return response, code
 
 
 class MainHTTPHandler(BaseHTTPRequestHandler):
     router = {
         "method": method_handler
     }
-    store = None
+    store = RedisStore.RedisStore()
 
     @staticmethod
     def get_request_id(headers):

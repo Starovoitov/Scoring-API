@@ -4,6 +4,7 @@ import datetime
 import functools
 import unittest
 
+import RedisStore
 import api
 
 
@@ -22,7 +23,10 @@ class TestSuite(unittest.TestCase):
     def setUp(self):
         self.context = {}
         self.headers = {}
-        self.store = None
+        self.store = RedisStore.RedisStore()
+
+    def tearDown(self):
+        self.store.destroy_store()
 
     def get_response(self, request):
         return api.method_handler({"body": request, "headers": self.headers}, self.context, self.store)
@@ -147,6 +151,40 @@ class TestSuite(unittest.TestCase):
     def test_bad_auth(self, request):
         _, code = self.get_response(request)
         self.assertEqual(api.FORBIDDEN, code)
+
+    @cases([
+        ({"score": 5.0}, {"score": 5.0}),
+        ({"score": 5.0}, {"score": 5.0}),
+        ({1: ['cinema', 'tv'], 2: ['cinema', 'hi-tech'], 3: ['hi-tech', 'books']},
+         {'score': 5.0, 1: ['cinema', 'tv'], 2: ['cinema', 'hi-tech'], 3: ['hi-tech', 'books']}),
+        ({"score": 12.0},
+         {'score': 12.0, 1: ['cinema', 'tv'], 2: ['cinema', 'hi-tech'], 3: ['hi-tech', 'books']}),
+        ({1: ['cinema', 'tv'], 2: ['it', 'hi-tech']},
+         {'score': 12.0, 1: ['cinema', 'tv'], 2: ['it', 'hi-tech'], 3: ['hi-tech', 'books']}),
+        ({50: ['travel', 'pets'], 2: ['it', 'hi-tech']},
+         {'score': 12.0, 1: ['cinema', 'tv'], 2: ['it', 'hi-tech'], 3: ['hi-tech', 'books'], 50: ['travel', 'pets']}),
+    ])
+    def test_update_cache(self, given, expected):
+        self.store.max_cache_size = 1000
+        self.store.update_cache("test_account", given)
+        self.assertEqual(self.store.cache["test_account"], expected)
+
+    @cases([
+        ({"score": 5.0}, {"score": 5.0}),
+        ({"score": 5.0}, {"score": 5.0}),
+        ({1: ['cinema', 'tv'], 2: ['cinema', 'hi-tech'], 3: ['hi-tech', 'books']},
+         {'score': 5.0, 1: ['cinema', 'tv'], 2: ['cinema', 'hi-tech'], 3: ['hi-tech', 'books']}),
+        ({"score": 12.0},
+         {'score': 12.0, 1: ['cinema', 'tv'], 2: ['cinema', 'hi-tech'], 3: ['hi-tech', 'books']}),
+        ({1: ['cinema', 'tv'], 2: ['it', 'hi-tech']},
+         {'score': 12.0, 1: ['cinema', 'tv'], 2: ['it', 'hi-tech'], 3: ['hi-tech', 'books']}),
+        ({50: ['travel', 'pets'], 2: ['it', 'hi-tech']},
+         {'score': 12.0, 1: ['cinema', 'tv'], 2: ['it', 'hi-tech'], 3: ['hi-tech', 'books'], 50: ['travel', 'pets']}),
+    ])
+    def test_update_db(self, given, expected):
+        self.store.update_db(test_account=given)
+        got = RedisStore.RedisStore.convert_str_to_dict(self.store.get("test_account"))
+        self.assertEqual(got, expected)
 
 
 if __name__ == "__main__":
