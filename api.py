@@ -326,7 +326,6 @@ def main_http_handler_with_store(store=None):
 
 if __name__ == "__main__":
     op = OptionParser()
-    op.add_option("-n", "--host", action="store", type=str, default='localhost')
     op.add_option("-p", "--port", action="store", type=int, default=8080)
     op.add_option("-l", "--log", action="store", default=None)
     op.add_option("-s", "--store_config", default=None)
@@ -335,7 +334,7 @@ if __name__ == "__main__":
                         format='[%(asctime)s] %(levelname).1s %(message)s', datefmt='%Y.%m.%d %H:%M:%S')
     persistent_storage = RedisStore.RedisStore(db_config=opts.store_config, logger=logging)
     HTTPHandler = main_http_handler_with_store(persistent_storage)
-    server = HTTPServer((opts.host, opts.port), HTTPHandler)
+    server = HTTPServer(("0.0.0.0", opts.port), HTTPHandler)
     logging.info("Starting server at %s" % opts.port)
     try:
         server.serve_forever()

@@ -26,7 +26,6 @@ Sample of config of Redis is store.config, all parameters there are default and 
 
 
 Script parameters:
-    "-n", "--host" - hostname where the http server is run. Default is localhost
     "-p", "--port" - port of the http server. Default is 8080
     "-l", "--log"  - path to written log. Console output if used if no log is provided
     "-s", "--store_config" - path to redis config. If no config is provided will try to connect with default parameters
