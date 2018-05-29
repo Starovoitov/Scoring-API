@@ -13,8 +13,9 @@ def check_availability(call_redis):
                 return function_value
             except redis.exceptions.ConnectionError:
                 self.attempt += 1
-                if self.attempt >= self.retries:
-                    raise redis.exceptions.ConnectionError("Redis is unavailable - stop using it")
+                if self.attempt > self.retries:
+                    self.logging.info("Redis is unavailable - stop using it")
+                    return wrapper
                 continue
     return wrapper
 
@@ -25,20 +26,24 @@ class RedisStore:
     attempt = 0
 
     def __init__(self, host='localhost', port=6379, db=0, max_cache_size=1000, retry_on_timeout=True,
-                 socket_timeout=5, socket_keepalive=True, retries=3, db_config=None):
+                 socket_timeout=5, socket_keepalive=True, retries=3, db_config=None, logger=None):
         if db_config:
             config_options = self.parse_config(db_config)
             host = config_options["host"]
-            port = config_options["port"]
-            db = config_options["db"]
-            max_cache_size = config_options["max_cache_size"]
-            retry_on_timeout = config_options["retry_on_timeout"]
-            socket_timeout = config_options["socket_timeout"]
-            socket_keepalive = config_options["socket_keepalive"]
-            retries = config_options["retries"]
+            port = int(config_options["port"])
+            db = int(config_options["db"])
+            max_cache_size = int(config_options["max_cache_size"])
+            retry_on_timeout = bool(config_options["retry_on_timeout"])
+            socket_timeout = int(config_options["socket_timeout"])
+            socket_keepalive = bool(config_options["socket_keepalive"])
+            retries = int(config_options["retries"])
 
         self.db = redis.Redis(host=host, port=port, db=db, retry_on_timeout=retry_on_timeout,
                               socket_timeout=socket_timeout, socket_keepalive=socket_keepalive)
+
+        if logger:
+            self.logging = logger
+
         self.max_cache_size = max_cache_size
         self.retries = retries
         self.destroy_store()
@@ -52,7 +57,8 @@ class RedisStore:
             updated_data.update(data)
             self.cache[key] = updated_data
 
-            if self.get_cache_size() >= self.max_cache_size:
+            if self.get_cache_size() >= self.max_cache_size and self.attempt <= self.retries:
+                self.logging.info("Cache if full, it's content is flushed into db")
                 self.flush_cache()
 
     def flush_cache(self):
@@ -72,6 +78,7 @@ class RedisStore:
                 updated_data = self.convert_str_to_dict(self.db.get(key)).copy()
                 updated_data.update(data)
                 self.db.set(key, updated_data)
+        self.logging.info("Database is updated")
 
     def get_cache(self):
         return self.cache

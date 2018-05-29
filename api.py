@@ -265,64 +265,77 @@ def method_handler(request, context, ctx):
         return "Forbidden", FORBIDDEN
 
     response, code = current_request.handle(context)
-    ctx.update_cache(current_request.account, response)
+    if ctx:
+        ctx.update_cache(current_request.account, response)
     return response, code
 
 
-class MainHTTPHandler(BaseHTTPRequestHandler):
-    router = {
-        "method": method_handler
-    }
-    store = RedisStore.RedisStore()
+def main_http_handler_with_store(store=None):
+    """Class fabric to pass here database object with all db's parameters """
+    class MainHTTPHandler(BaseHTTPRequestHandler):
+        router = {
+            "method": method_handler
+        }
+        store = None
 
-    @staticmethod
-    def get_request_id(headers):
-        return headers.get('HTTP_X_REQUEST_ID', uuid.uuid4().hex)
+        def __init__(self, *args, **kwargs):
+            BaseHTTPRequestHandler.__init__(self, *args, **kwargs)
+            self.store = store
 
-    def do_POST(self):
-        response, code = {}, OK
-        context = {"request_id": self.get_request_id(self.headers)}
-        request = None
-        data_string = None
-        try:
-            data_string = self.rfile.read(int(self.headers['Content-Length']))
-            request = json.loads(data_string)
-        except:
-            code = BAD_REQUEST
+        @staticmethod
+        def get_request_id(headers):
+            return headers.get('HTTP_X_REQUEST_ID', uuid.uuid4().hex)
 
-        if request:
-            path = self.path.strip("/")
-            logging.info("%s: %s %s" % (self.path, data_string, context["request_id"]))
-            if path in self.router:
-                try:
-                    response, code = self.router[path]({"body": request, "headers": self.headers}, context, self.store)
-                except Exception, e:
-                    logging.exception("Unexpected error: %s" % e)
-                    code = INTERNAL_ERROR
+        def do_POST(self):
+            response, code = {}, OK
+            context = {"request_id": self.get_request_id(self.headers)}
+            request = None
+            data_string = None
+            try:
+                data_string = self.rfile.read(int(self.headers['Content-Length']))
+                request = json.loads(data_string)
+            except:
+                code = BAD_REQUEST
+
+            if request:
+                path = self.path.strip("/")
+                logging.info("%s: %s %s" % (self.path, data_string, context["request_id"]))
+                if path in self.router:
+                    try:
+                        response, code = self.router[path]({"body": request, "headers": self.headers}, context,
+                                                           self.store)
+                    except Exception, e:
+                        logging.exception("Unexpected error: %s" % e)
+                        code = INTERNAL_ERROR
+                else:
+                    code = NOT_FOUND
+
+            self.send_response(code)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            if code not in ERRORS:
+                r = {"response": response, "code": code}
             else:
-                code = NOT_FOUND
-
-        self.send_response(code)
-        self.send_header("Content-Type", "application/json")
-        self.end_headers()
-        if code not in ERRORS:
-            r = {"response": response, "code": code}
-        else:
-            r = {"error": response or ERRORS.get(code, "Unknown Error"), "code": code}
-        context.update(r)
-        logging.info(context)
-        self.wfile.write(json.dumps(r))
-        return
+                r = {"error": response or ERRORS.get(code, "Unknown Error"), "code": code}
+            context.update(r)
+            logging.info(context)
+            self.wfile.write(json.dumps(r))
+            return
+    return MainHTTPHandler
 
 
 if __name__ == "__main__":
     op = OptionParser()
+    op.add_option("-n", "--host", action="store", type=str, default='localhost')
     op.add_option("-p", "--port", action="store", type=int, default=8080)
     op.add_option("-l", "--log", action="store", default=None)
+    op.add_option("-s", "--store_config", default=None)
     (opts, args) = op.parse_args()
     logging.basicConfig(filename=opts.log, level=logging.INFO,
                         format='[%(asctime)s] %(levelname).1s %(message)s', datefmt='%Y.%m.%d %H:%M:%S')
-    server = HTTPServer(("localhost", opts.port), MainHTTPHandler)
+    persistent_storage = RedisStore.RedisStore(db_config=opts.store_config, logger=logging)
+    HTTPHandler = main_http_handler_with_store(persistent_storage)
+    server = HTTPServer((opts.host, opts.port), HTTPHandler)
     logging.info("Starting server at %s" % opts.port)
     try:
         server.serve_forever()

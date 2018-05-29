@@ -22,3 +22,13 @@ are written in following format:
     
 If connection is failed for several attempt is failed then using of persistent storage is stopped
 Cache for pulling data into db has 1000 bytes by default
+Sample of config of Redis is store.config, all parameters there are default and will be used if no config is provided
+
+
+Script parameters:
+    "-n", "--host" - hostname where the http server is run. Default is localhost
+    "-p", "--port" - port of the http server. Default is 8080
+    "-l", "--log"  - path to written log. Console output if used if no log is provided
+    "-s", "--store_config" - path to redis config. If no config is provided will try to connect with default parameters
+                             If connection is impossible or fails with several retries persistent storage won't be used
+    
