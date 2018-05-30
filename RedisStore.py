@@ -14,7 +14,8 @@ def check_availability(call_redis):
             except redis.exceptions.ConnectionError:
                 self.attempt += 1
                 if self.attempt > self.retries:
-                    self.logging.info("Redis is unavailable - stop using it")
+                    if logger:
+                        self.logging.info("Redis is unavailable - stop using it")
                     return wrapper
                 continue
     return wrapper
@@ -78,7 +79,8 @@ class RedisStore:
                 updated_data = self.convert_str_to_dict(self.db.get(key)).copy()
                 updated_data.update(data)
                 self.db.set(key, updated_data)
-        self.logging.info("Database is updated")
+        if logger:
+            self.logging.info("Database is updated")
 
     def get_cache(self):
         return self.cache
