@@ -25,7 +25,8 @@ class RedisStore:
     """Record format in redis: { account : {score: value, nclient1: [interests], nclient2: [interests]}}"""
     cache = {}
     attempt = 0
-
+    logging = None
+    
     def __init__(self, host='localhost', port=6379, db=0, max_cache_size=1000, retry_on_timeout=True,
                  socket_timeout=5, socket_keepalive=True, retries=3, db_config=None, logger=None):
         if db_config:
