@@ -14,15 +14,15 @@ How to send one of handling http-requests*:
 
 *Samples of that could be taken from test.py
 
-The api is a script for handling and validation incoming http requests of certain formats and 
+This is a script for handling and validation incoming http requests of certain formats and 
 collecting data from them in store (optionally). Using store is Redis database where records
 are written in following format: 
 
     { account : {score: value, nclient1: [interests], nclient2: [interests]}}
     
-If connection is failed for several attempt is failed then using of persistent storage is stopped
+If connection fails for several attempt then using of persistent storage is stopped
 Cache for pulling data into db has 1000 bytes by default
-Sample of config of Redis is store.config, all parameters there are default and will be used if no config is provided
+Sample of config of Redis is store.config, all parameters are default there and will be used if no any other config is provided
 
 
 Script parameters:
